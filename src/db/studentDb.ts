@@ -1,0 +1,163 @@
+import sqlite3 from 'sqlite3';
+
+import type StudentInterface from '@/types/StudentInterface';
+import getRandomFio from '@/utils/getRandomFio';
+import FioInterface from '@/types/FioInterface';
+
+sqlite3.verbose();
+
+/**
+ * Получение студентов
+ * @returns Promise<StudentInterface[]>
+ */
+export const getStudentsDb = async (): Promise<StudentInterface[]> => {
+  const db = new sqlite3.Database(process.env.DB ?? './db/vki-web.db');
+
+  const students = await new Promise((resolve, reject) => {
+    const sql = 'SELECT id, firstName, lastName, middleName, groupId FROM student';
+    db.all(sql, [], (err, rows) => {
+      if (err) {
+        reject(err);
+        db.close();
+        return;
+      }
+      resolve(rows);
+      db.close();
+    });
+  });
+
+  return students as StudentInterface[];
+};
+
+/**
+ * Удаления студента
+ * @param studentId 
+ * @returns 
+ */
+export const deleteStudentDb = async (studentId: number): Promise<number> => {
+  const db = new sqlite3.Database(process.env.DB ?? './db/vki-web.db');
+
+  await new Promise((resolve, reject) => {
+    db.run('DELETE FROM student WHERE id=?', [studentId], (err) => {
+      if (err) {
+        reject(err);
+        db.close();
+        return;
+      }
+      resolve(studentId);
+      db.close();
+    });
+  });
+
+  return studentId;
+};
+
+/**
+ * Создание нового студента
+ * @param firstName имя
+ * @param lastName фамилия
+ * @param middleName отчество
+ * @param groupId ID группы
+ * @returns Promise<StudentInterface>
+ */
+export const createStudentDb = async (
+  firstName: string, 
+  lastName: string, 
+  middleName: string, 
+  groupId?: number
+): Promise<StudentInterface> => {
+  const db = new sqlite3.Database(process.env.DB ?? './db/vki-web.db');
+
+  const student = await new Promise((resolve, reject) => {
+    db.run(
+      'INSERT INTO student (firstName, lastName, middleName, groupId) VALUES (?, ?, ?, ?)', 
+      [firstName, lastName, middleName, groupId || null], 
+      function(err) {
+        if (err) {
+          reject(err);
+          db.close();
+          return;
+        }
+        resolve({ 
+          id: this.lastID, 
+          firstName, 
+          lastName, 
+          middleName, 
+          groupId 
+        });
+        db.close();
+      }
+    );
+  });
+
+  return student as StudentInterface;
+};
+
+/**
+ * Обновление студента
+ * @param id ID студента
+ * @param firstName имя
+ * @param lastName фамилия
+ * @param middleName отчество
+ * @param groupId ID группы
+ * @returns Promise<StudentInterface>
+ */
+export const updateStudentDb = async (
+  id: number,
+  firstName: string, 
+  lastName: string, 
+  middleName: string, 
+  groupId?: number
+): Promise<StudentInterface> => {
+  const db = new sqlite3.Database(process.env.DB ?? './db/vki-web.db');
+
+  await new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE student SET firstName = ?, lastName = ?, middleName = ?, groupId = ? WHERE id = ?', 
+      [firstName, lastName, middleName, groupId || null, id], 
+      (err) => {
+        if (err) {
+          reject(err);
+          db.close();
+          return;
+        }
+        resolve({ id, firstName, lastName, middleName, groupId });
+        db.close();
+      }
+    );
+  });
+
+  return { id, firstName, lastName, middleName, groupId };
+};
+
+/**
+ * Добавление  рандомных студента
+ * @param mount количество добавляемых записей - 10 по умолчанию
+ * @returns 
+ */
+export const addRandomStudentsDb = async (amount: number = 10): Promise<FioInterface[]> => {
+  const db = new sqlite3.Database(process.env.DB ?? './db/vki-web.db');
+
+  const fios: FioInterface[] = [];
+  let fiosInsert: string = ''
+  for (let i = 0; i < amount; i++) {
+    const fio = getRandomFio();
+    fios.push(fio);
+    fiosInsert+= `('${fio.firstName}', '${fio.lastName}', '${fio.middleName}', 1)`;
+    fiosInsert+= `${i === amount - 1 ? ';' : ','}`;
+  }
+
+  await new Promise((resolve, reject) => {
+    db.run(`INSERT INTO student (firstName, lastName, middleName, groupId) VALUES ${fiosInsert}`, [], (err) => {
+      if (err) {
+        reject(err);
+        db.close();
+        return;
+      }
+      resolve(fios);
+      db.close();
+    });
+  });
+
+  return fios;
+};
