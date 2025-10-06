@@ -23,12 +23,17 @@
   font-size: 14px;
   transition: background-color 0.3s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background-color: #45a049;
+  }
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
   }
 }
 
-.createForm, .editForm {
+.editForm {
   background-color: #f9f9f9;
   padding: 20px;
   border-radius: 8px;

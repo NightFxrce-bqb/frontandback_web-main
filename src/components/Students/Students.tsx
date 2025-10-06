@@ -8,19 +8,22 @@ import type StudentInterface from '@/types/StudentInterface';
 import type GroupInterface from '@/types/GroupInterface';
 import { deleteStudentApi } from '@/api/studentsApi';
 import Student from '@/components/Students/Student/Student';
+import AddStudent from '@/components/Students/AddStudent';
 import styles from './Students.module.scss';
+
+interface AddStudentFormData {
+  firstName: string;
+  lastName: string;
+  middleName: string;
+  groupId?: number;
+}
 
 const Students = (): React.ReactElement => {
   const { students, refetch: refetchStudents } = useStudents();
   const { groups } = useGroups();
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [newStudent, setNewStudent] = useState({
-    firstName: '',
-    lastName: '',
-    middleName: '',
-    groupId: undefined as number | undefined
-  });
+  const [isLoading, setIsLoading] = useState(false);
   const [editStudent, setEditStudent] = useState({
     firstName: '',
     lastName: '',
@@ -35,22 +38,24 @@ const Students = (): React.ReactElement => {
     }
   };
 
-  const handleCreateStudent = async (): Promise<void> => {
-    if (!newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.middleName.trim()) {
-      return;
-    }
+  const handleAddStudent = async (data: AddStudentFormData): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const student = await createStudentApi(
+        data.firstName,
+        data.lastName,
+        data.middleName,
+        data.groupId
+      );
 
-    const student = await createStudentApi(
-      newStudent.firstName.trim(),
-      newStudent.lastName.trim(),
-      newStudent.middleName.trim(),
-      newStudent.groupId
-    );
-
-    if (student) {
-      setNewStudent({ firstName: '', lastName: '', middleName: '', groupId: undefined });
-      setIsCreating(false);
-      refetchStudents();
+      if (student) {
+        setIsCreating(false);
+        refetchStudents();
+      }
+    } catch (error) {
+      console.error('Ошибка при добавлении студента:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -102,65 +107,19 @@ const Students = (): React.ReactElement => {
         <button 
           className={styles.addButton}
           onClick={() => setIsCreating(true)}
+          disabled={isLoading}
         >
           Добавить студента
         </button>
       </div>
 
       {isCreating && (
-        <div className={styles.createForm}>
-          <div className={styles.formRow}>
-            <input
-              type="text"
-              placeholder="Фамилия"
-              value={newStudent.lastName}
-              onChange={(e) => setNewStudent({ ...newStudent, lastName: e.target.value })}
-              className={styles.input}
-            />
-            <input
-              type="text"
-              placeholder="Имя"
-              value={newStudent.firstName}
-              onChange={(e) => setNewStudent({ ...newStudent, firstName: e.target.value })}
-              className={styles.input}
-            />
-            <input
-              type="text"
-              placeholder="Отчество"
-              value={newStudent.middleName}
-              onChange={(e) => setNewStudent({ ...newStudent, middleName: e.target.value })}
-              className={styles.input}
-            />
-          </div>
-          <div className={styles.formRow}>
-            <select
-              value={newStudent.groupId || ''}
-              onChange={(e) => setNewStudent({ ...newStudent, groupId: e.target.value ? parseInt(e.target.value) : undefined })}
-              className={styles.select}
-            >
-              <option value="">Выберите группу</option>
-              {groups.map((group: GroupInterface) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.buttonGroup}>
-            <button onClick={handleCreateStudent} className={styles.saveButton}>
-              Сохранить
-            </button>
-            <button 
-              onClick={() => {
-                setIsCreating(false);
-                setNewStudent({ firstName: '', lastName: '', middleName: '', groupId: undefined });
-              }} 
-              className={styles.cancelButton}
-            >
-              Отмена
-            </button>
-          </div>
-        </div>
+        <AddStudent
+          groups={groups}
+          onSubmit={handleAddStudent}
+          onCancel={() => setIsCreating(false)}
+          isLoading={isLoading}
+        />
       )}
 
       <div className={styles.studentsList}>
